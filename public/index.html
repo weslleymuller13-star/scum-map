@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCUM Squad Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c07;--bg2:#0c1209;--bg3:#101608;
+  --border:#1e2e12;--green:#7ab648;--green2:#5a8a30;
+  --text:#c8d4b8;--muted:#4a6030;--red:#cc4428;--yellow:#c8a020;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* TOP BAR */
+.topbar{
+  height:42px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;flex-shrink:0;z-index:1000;position:relative
+}
+.logo{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--green);letter-spacing:3px}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.ws-row{display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px}
+.dot{width:6px;height:6px;border-radius:50%;background:#555}
+.dot.on{background:var(--green);animation:blink 1.5s infinite}
+.dot.off{background:var(--red)}
+.dot.wait{background:var(--yellow);animation:blink .6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#clock{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted)}
+
+/* LAYOUT */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{
+  width:230px;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;z-index:900
+}
+.sec{border-bottom:1px solid var(--border);flex-shrink:0}
+.sec-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 11px;
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);
+  letter-spacing:1px;text-transform:uppercase
+}
+.add-btn{
+  width:22px;height:22px;background:transparent;border:1px solid var(--border);
+  color:var(--green2);border-radius:2px;cursor:pointer;font-size:15px;
+  display:flex;align-items:center;justify-content:center;transition:background .15s
+}
+.add-btn:hover{background:var(--bg3)}
+
+/* PLAYER ROWS */
+.player-list{overflow-y:auto;max-height:180px}
+.prow{
+  display:flex;align-items:center;gap:7px;padding:5px 11px;
+  border-bottom:1px solid #0d1408;cursor:pointer;transition:background .12s
+}
+.prow:hover{background:var(--bg3)}
+.prow.sel{background:#162010}
+.pdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(255,255,255,.2)}
+.pname{font-size:13px;font-weight:700;letter-spacing:.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcoord{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap}
+.row-actions{display:flex;gap:3px;flex-shrink:0}
+.ibt{
+  width:18px;height:18px;background:transparent;border:1px solid var(--border);
+  color:var(--muted);border-radius:2px;cursor:pointer;font-size:11px;
+  display:flex;align-items:center;justify-content:center;transition:all .12s
+}
+.ibt:hover{background:var(--bg3);color:var(--green)}
+.ibt.del:hover{color:var(--red)}
+
+/* MARKER MODES */
+.mode-bar{display:flex;gap:4px;padding:7px 8px}
+.mbt{
+  flex:1;font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 2px;
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:2px;cursor:pointer;letter-spacing:.4px;text-align:center;transition:all .15s
+}
+.mbt.active{background:#162010;border-color:var(--green2);color:var(--green)}
+.mbt:hover{color:var(--green)}
+
+/* MARKER LIST */
+.marker-list{overflow-y:auto;flex:1}
+.mrow{
+  display:flex;align-items:center;gap:7px;padding:5px 11px;
+  border-bottom:1px solid #0d1408;cursor:pointer;transition:background .12s
+}
+.mrow:hover{background:var(--bg3)}
+.micon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.mlabel{font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mtype{font-family:'Share Tech Mono',monospace;font-size:9px;padding:1px 5px;border-radius:2px}
+
+/* LEGEND */
+.legend{padding:9px 11px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);border-top:1px solid var(--border)}
+.leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold}
+
+/* MAP */
+.map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%;background:#060a05}
+
+/* COORD DISPLAY */
+.coord-hud{
+  position:absolute;bottom:10px;left:10px;z-index:800;
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);
+  background:rgba(6,10,5,.9);padding:4px 9px;border-radius:2px;
+  border:1px solid #1a2410;pointer-events:none
+}
+
+/* MODE INDICATOR */
+.mode-hud{
+  position:absolute;top:10px;right:10px;z-index:800;
+  font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--green);
+  background:rgba(6,10,5,.9);padding:5px 12px;border-radius:2px;
+  border:1px solid var(--green2);display:none
+}
+
+/* PANEL */
+.panel-bg{
+  position:absolute;inset:0;background:rgba(0,0,0,.85);
+  display:flex;align-items:center;justify-content:center;z-index:2000
+}
+.panel-bg.hidden{display:none}
+.panel{
+  background:var(--bg2);border:1px solid #2a3a18;border-radius:3px;
+  padding:20px;width:310px;max-width:95%
+}
+.ptitle{
+  font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:15px;
+  padding-bottom:8px;border-bottom:1px solid var(--border)
+}
+.field{margin-bottom:10px}
+.field label{
+  display:block;font-family:'Share Tech Mono',monospace;font-size:10px;
+  color:var(--muted);letter-spacing:1px;margin-bottom:4px;text-transform:uppercase
+}
+.field input,.field select{
+  width:100%;background:#060a05;border:1px solid var(--border);color:var(--text);
+  font-family:'Share Tech Mono',monospace;font-size:12px;padding:7px 9px;border-radius:2px;outline:none
+}
+.field input:focus,.field select:focus{border-color:var(--green2)}
+.field select option{background:var(--bg2)}
+.row2{display:flex;gap:7px}
+.row2 .field{flex:1}
+.color-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.cswatch{
+  width:22px;height:22px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:border-color .12s
+}
+.cswatch.active{border-color:#fff}
+.pactions{display:flex;gap:7px;justify-content:flex-end;margin-top:15px;padding-top:11px;border-top:1px solid var(--border)}
+.btn-ok{
+  font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 16px;
+  background:#182e08;border:1px solid #3a6018;color:var(--green);border-radius:2px;cursor:pointer;letter-spacing:1px
+}
+.btn-ok:hover{background:#203a10}
+.btn-x{
+  font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 14px;
+  background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:2px;cursor:pointer;letter-spacing:1px
+}
+.hint{font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a4a28;margin-top:5px;line-height:1.5}
+
+/* Leaflet overrides */
+.leaflet-container{background:#060a05 !important}
+.leaflet-tile{image-rendering:pixelated}
+.player-marker-wrap{position:relative}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">SCUM // SQUAD MAP</div>
+    <div class="topbar-right">
+      <div class="ws-row">
+        <div class="dot wait" id="wdot"></div>
+        <span id="wlbl" style="color:#c8a020">CONECTANDO</span>
+      </div>
+      <span id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Players -->
+      <div class="sec">
+        <div class="sec-head">
+          <span>PLAYERS DO SQUAD</span>
+          <button class="add-btn" onclick="openPlayerPanel(null)" title="Adicionar player">+</button>
+        </div>
+        <div class="player-list" id="player-list">
+          <div style="padding:10px 11px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3828">Clique em + para adicionar</div>
+        </div>
+      </div>
+
+      <!-- Marker modes -->
+      <div class="sec">
+        <div class="sec-head"><span>ADICIONAR NO MAPA</span></div>
+        <div class="mode-bar">
+          <button class="mbt" id="mb-car"   onclick="toggleMode('car')"  >CARRO</button>
+          <button class="mbt" id="mb-chest" onclick="toggleMode('chest')">BAÚ</button>
+          <button class="mbt" id="mb-base"  onclick="toggleMode('base')" >BASE</button>
+          <button class="mbt" id="mb-flag"  onclick="toggleMode('flag')" >PONTO</button>
+        </div>
+      </div>
+
+      <!-- Marker list -->
+      <div class="sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="sec-head"><span>MARCAÇÕES</span></div>
+        <div class="marker-list" id="marker-list">
+          <div style="padding:10px 11px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3828">Selecione um tipo e clique no mapa</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="leg-row"><div class="leg-dot" style="background:#ff5555"></div>Você / Player</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#7ab648"></div>Aliado</div>
+        <div class="leg-row"><div class="leg-sq" style="background:#c87820;color:#fff">C</div>Carro</div>
+        <div class="leg-row"><div class="leg-sq" style="background:#8855cc;color:#fff">B</div>Baú</div>
+        <div class="leg-row"><div class="leg-sq" style="background:#cc4428;color:#fff">X</div>Base</div>
+        <div class="leg-row"><div class="leg-sq" style="background:#2888c8;color:#fff">P</div>Ponto</div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-wrap" id="map-wrap">
+      <div id="map"></div>
+      <div class="coord-hud" id="coord-hud">X: 0 &nbsp; Y: 0</div>
+      <div class="mode-hud" id="mode-hud">CLIQUE NO MAPA PARA MARCAR</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL: PLAYER -->
+<div class="panel-bg hidden" id="player-panel">
+  <div class="panel">
+    <div class="ptitle" id="pp-title">ADICIONAR PLAYER</div>
+    <div class="field">
+      <label>Nome / Callsign</label>
+      <input id="pp-name" type="text" maxlength="16" placeholder="GHOST">
+    </div>
+    <div class="field">
+      <label>Coordenadas do jogo — cole aqui</label>
+      <input id="pp-raw" type="text" placeholder="{X=-142798 Y=-142780 Z=39619|...}" oninput="parseRawCoords()">
+      <div class="hint">Cole o teleport do jogo ou preencha X/Y manualmente abaixo</div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>X (jogo)</label>
+        <input id="pp-x" type="number" placeholder="-142798">
+      </div>
+      <div class="field">
+        <label>Y (jogo)</label>
+        <input id="pp-y" type="number" placeholder="-142780">
+      </div>
+    </div>
+    <div class="field">
+      <label>Cor no mapa</label>
+      <div class="color-row" id="pp-colors"></div>
+    </div>
+    <div class="pactions">
+      <button class="btn-x" onclick="closePanel('player-panel')">CANCELAR</button>
+      <button class="btn-ok" onclick="savePlayer()">SALVAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL: MARKER -->
+<div class="panel-bg hidden" id="marker-panel">
+  <div class="panel">
+    <div class="ptitle" id="mp-title">ADICIONAR MARCAÇÃO</div>
+    <div class="field">
+      <label>Nome</label>
+      <input id="mp-name" type="text" maxlength="28" placeholder="Ex: Base Principal">
+    </div>
+    <div class="row2">
+      <div class="field"><label>X (jogo)</label><input type="number" id="mp-x"></div>
+      <div class="field"><label>Y (jogo)</label><input type="number" id="mp-y"></div>
+    </div>
+    <div class="pactions">
+      <button class="btn-x" onclick="closePanel('marker-panel')">CANCELAR</button>
+      <button class="btn-ok" onclick="saveMarker()">SALVAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// SCUM COORDINATE SYSTEM
+// Centro do mapa: X=-142798.922, Y=-142780.359 → pixel (540,540)
+// Escala calibrada com 16 pontos de interseção (regressão linear)
+// Mapa: 1080x1080 px = 144 km² in-game
+// X é invertido no mapa (negativo vai para direita)
+// ════════════════════════════════════════════════════════════
+
+const SCUM = {
+  CENTER_X: -142798.922,
+  CENTER_Y: -142780.359,
+  CENTER_PX: 540,
+  CENTER_PY: 540,
+  MAP_PX: 1080,
+  SCALE_X: -0.003748,  // pixels por unidade game X (invertido)
+  SCALE_Y:  0.003748,  // pixels por unidade game Y
+};
+
+// Converte coordenada do jogo → pixel no mapa 1080x1080
+function gameToPixel(gx, gy) {
+  const dx = gx - SCUM.CENTER_X;
+  const dy = gy - SCUM.CENTER_Y;
+  const px = SCUM.CENTER_PX + dx * SCUM.SCALE_X;
+  const py = SCUM.CENTER_PY - dy * SCUM.SCALE_Y;
+  return { px, py };
+}
+
+// Converte pixel → coordenada do jogo
+function pixelToGame(px, py) {
+  const gx = SCUM.CENTER_X + (px - SCUM.CENTER_PX) / SCUM.SCALE_X;
+  const gy = SCUM.CENTER_Y - (py - SCUM.CENTER_PY) / SCUM.SCALE_Y;
+  return { gx: Math.round(gx), gy: Math.round(gy) };
+}
+
+// ════════════════════════════════════════════════════════════
+// LEAFLET MAP SETUP — imagem real do jogo via repositório público
+// ════════════════════════════════════════════════════════════
+const MAP_IMAGE = '/map.png';
+const IMG_SIZE  = 1080;
+
+const map = L.map('map', {
+  crs: L.CRS.Simple,
+  zoomSnap: 0.25,
+  zoomDelta: 0.5,
+  minZoom: -2,
+  maxZoom: 4,
+  attributionControl: false,
+  zoomControl: false,
+});
+
+const bounds = [[0, 0], [IMG_SIZE, IMG_SIZE]];
+L.imageOverlay(MAP_IMAGE, bounds).addTo(map);
+map.fitBounds(bounds);
+map.setView([IMG_SIZE / 2, IMG_SIZE / 2], -0.5);
+
+// Zoom buttons customizados
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// ── GRADE DE QUADRANTES (Z0-D4) ────────────────────────────
+const QUAD_SIZE = IMG_SIZE / 5;
+const QUAD_COLS = ['Z','A','B','C','D'];
+
+for (let col = 0; col <= 5; col++) {
+  L.polyline([[0, col * QUAD_SIZE], [IMG_SIZE, col * QUAD_SIZE]], {
+    color: '#2a3a18', weight: 0.8, opacity: 0.6
+  }).addTo(map);
+}
+for (let row = 0; row <= 5; row++) {
+  L.polyline([[row * QUAD_SIZE, 0], [row * QUAD_SIZE, IMG_SIZE]], {
+    color: '#2a3a18', weight: 0.8, opacity: 0.6
+  }).addTo(map);
+}
+
+// Labels dos quadrantes
+for (let row = 0; row < 5; row++) {
+  for (let col = 0; col < 5; col++) {
+    const cy = (row + 0.08) * QUAD_SIZE;
+    const cx = (col + 0.06) * QUAD_SIZE;
+    L.marker([cy, cx], {
+      icon: L.divIcon({
+        html: `<span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#2a3818;opacity:.7;pointer-events:none">${QUAD_COLS[col]}${row}</span>`,
+        iconSize: [28, 14],
+        className: ''
+      }),
+      interactive: false
+    }).addTo(map);
+  }
+}
+
+// ── CURSOR COORDS ────────────────────────────────────────────
+map.on('mousemove', (e) => {
+  const { gx, gy } = pixelToGame(e.latlng.lng, e.latlng.lat);
+  document.getElementById('coord-hud').textContent = `X: ${gx}  Y: ${gy}`;
+});
+
+// ── MAP CLICK → colocar marcação ────────────────────────────
+map.on('click', (e) => {
+  if (!activeMode) return;
+  const { gx, gy } = pixelToGame(e.latlng.lng, e.latlng.lat);
+  pendingGameX = gx;
+  pendingGameY = gy;
+  pendingType  = activeMode;
+  document.getElementById('mp-title').textContent = 'ADICIONAR ' + (MARKER_CFG[activeMode]?.label || 'MARCAÇÃO');
+  document.getElementById('mp-x').value = gx;
+  document.getElementById('mp-y').value = gy;
+  document.getElementById('mp-name').value = '';
+  openPanel('marker-panel');
+});
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let players = {};
+let markers = {};
+let playerLeafletMarkers = {};
+let markerLeafletMarkers = {};
+let activeMode = null;
+let pendingGameX = 0, pendingGameY = 0, pendingType = null;
+let editingPlayer = null, editingMarker = null;
+let selectedColor = '#7ab648';
+let selectedPlayer = null;
+
+const PLAYER_COLORS = ['#ff5555','#7ab648','#3888c8','#c87820','#cc55cc','#55cccc','#ffcc44','#ff8844'];
+
+const MARKER_CFG = {
+  car:   { label:'CARRO', color:'#c87820', icon:'C', emoji:'🚗' },
+  chest: { label:'BAÚ',   color:'#8855cc', icon:'B', emoji:'📦' },
+  base:  { label:'BASE',  color:'#cc4428', icon:'X', emoji:'🏠' },
+  flag:  { label:'PONTO', color:'#2888c8', icon:'P', emoji:'📍' },
+};
+
+// ════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ════════════════════════════════════════════════════════════
+const WS_URL = `ws://${location.host}`;
+let ws = null;
+
+function connect() {
+  setWs('wait');
+  try { ws = new WebSocket(WS_URL); } catch(e) { setWs('off'); setTimeout(connect, 3000); return; }
+  ws.onopen  = () => setWs('on');
+  ws.onmessage = e => { try { onMsg(JSON.parse(e.data)); } catch(_) {} };
+  ws.onclose = () => { setWs('off'); setTimeout(connect, 3000); };
+  ws.onerror = () => {};
+}
+function sendWS(type, payload) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type, payload }));
+}
+function setWs(s) {
+  document.getElementById('wdot').className = 'dot ' + (s==='on'?'on':s==='off'?'off':'wait');
+  const l = document.getElementById('wlbl');
+  l.textContent = s==='on'?'ONLINE':s==='off'?'OFFLINE':'CONECTANDO';
+  l.style.color = s==='on'?'#7ab648':s==='off'?'#cc4428':'#c8a020';
+}
+
+function onMsg(msg) {
+  if (msg.type === 'FULL_STATE') {
+    players = {}; markers = {};
+    clearAllLeafletMarkers();
+    Object.values(msg.payload.players || {}).forEach(p => { players[p.id] = p; addPlayerToMap(p); });
+    Object.values(msg.payload.markers || {}).forEach(m => { markers[m.id] = m; addMarkerToMap(m); });
+    renderSidebar();
+  }
+  if (msg.type === 'PLAYER_UPDATE') {
+    players[msg.payload.id] = msg.payload;
+    removePlayerFromMap(msg.payload.id);
+    addPlayerToMap(msg.payload);
+    renderSidebar();
+  }
+  if (msg.type === 'PLAYER_REMOVED') {
+    delete players[msg.payload.id];
+    removePlayerFromMap(msg.payload.id);
+    renderSidebar();
+  }
+  if (msg.type === 'MARKER_UPDATE') {
+    markers[msg.payload.id] = msg.payload;
+    removeMarkerFromMap(msg.payload.id);
+    addMarkerToMap(msg.payload);
+    renderSidebar();
+  }
+  if (msg.type === 'MARKER_REMOVED') {
+    delete markers[msg.payload.id];
+    removeMarkerFromMap(msg.payload.id);
+    renderSidebar();
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// LEAFLET MARKERS
+// ════════════════════════════════════════════════════════════
+function addPlayerToMap(p) {
+  if (!p.gx && !p.gy) return;
+  const { px, py } = gameToPixel(p.gx, p.gy);
+  const color = p.color || '#7ab648';
+  const initials = (p.name || '?').substring(0, 2).toUpperCase();
+
+  const icon = L.divIcon({
+    html: `
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center">
+        <div style="
+          font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;
+          color:#fff;background:rgba(0,0,0,.75);padding:1px 5px;border-radius:2px;
+          white-space:nowrap;margin-bottom:2px;border:1px solid ${color}44;letter-spacing:.5px
+        ">${p.name || 'PLAYER'}</div>
+        <div style="
+          width:18px;height:18px;border-radius:50%;
+          background:${color}33;border:2px solid ${color};
+          display:flex;align-items:center;justify-content:center;
+          font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;color:${color}
+        ">${initials}</div>
+        <div style="
+          width:0;height:0;
+          border-left:4px solid transparent;border-right:4px solid transparent;
+          border-top:6px solid ${color}
+        "></div>
+      </div>`,
+    iconSize: [60, 42],
+    iconAnchor: [30, 42],
+    className: ''
+  });
+
+  const lm = L.marker([py, px], { icon, zIndexOffset: 1000 }).addTo(map);
+  lm.on('click', () => openPlayerPanel(p.id));
+  playerLeafletMarkers[p.id] = lm;
+}
+
+function removePlayerFromMap(id) {
+  if (playerLeafletMarkers[id]) {
+    map.removeLayer(playerLeafletMarkers[id]);
+    delete playerLeafletMarkers[id];
+  }
+}
+
+function addMarkerToMap(m) {
+  if (!m.gx && !m.gy) return;
+  const { px, py } = gameToPixel(m.gx, m.gy);
+  const cfg = MARKER_CFG[m.type] || MARKER_CFG.flag;
+
+  const icon = L.divIcon({
+    html: `
+      <div style="display:flex;flex-direction:column;align-items:center">
+        ${m.name ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#ccc;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:2px;white-space:nowrap;margin-bottom:2px;border:1px solid ${cfg.color}44">${m.name}</div>` : ''}
+        <div style="
+          width:20px;height:20px;border-radius:3px;
+          background:${cfg.color}44;border:1.5px solid ${cfg.color};
+          display:flex;align-items:center;justify-content:center;
+          font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:bold;color:${cfg.color}
+        ">${cfg.icon}</div>
+      </div>`,
+    iconSize: [70, m.name ? 36 : 22],
+    iconAnchor: [35, m.name ? 36 : 22],
+    className: ''
+  });
+
+  const lm = L.marker([py, px], { icon, zIndexOffset: 500 }).addTo(map);
+  lm.on('click', () => {
+    editingMarker = m.id;
+    if (confirm(`Remover "${m.name || cfg.label}"?`)) {
+      sendWS('REMOVE_MARKER', { id: m.id });
+    }
+    editingMarker = null;
+  });
+  markerLeafletMarkers[m.id] = lm;
+}
+
+function removeMarkerFromMap(id) {
+  if (markerLeafletMarkers[id]) {
+    map.removeLayer(markerLeafletMarkers[id]);
+    delete markerLeafletMarkers[id];
+  }
+}
+
+function clearAllLeafletMarkers() {
+  Object.values(playerLeafletMarkers).forEach(m => map.removeLayer(m));
+  Object.values(markerLeafletMarkers).forEach(m => map.removeLayer(m));
+  playerLeafletMarkers = {};
+  markerLeafletMarkers = {};
+}
+
+// ════════════════════════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════════════════════════
+function renderSidebar() {
+  // Players
+  const pl = document.getElementById('player-list');
+  const plist = Object.values(players);
+  if (!plist.length) {
+    pl.innerHTML = '<div style="padding:10px 11px;font-family:Share Tech Mono,monospace;font-size:10px;color:#2a3828">Clique em + para adicionar</div>';
+  } else {
+    pl.innerHTML = plist.map(p => `
+      <div class="prow ${selectedPlayer===p.id?'sel':''}" onclick="focusPlayer('${p.id}')">
+        <div class="pdot" style="background:${p.color||'#7ab648'};border-color:${p.color||'#7ab648'}"></div>
+        <div style="flex:1;overflow:hidden">
+          <div class="pname">${p.name||'PLAYER'}</div>
+          <div class="pcoord">${p.gx?`X:${p.gx} Y:${p.gy}`:'SEM POSIÇÃO'}</div>
+        </div>
+        <div class="row-actions">
+          <button class="ibt" onclick="event.stopPropagation();openPlayerPanel('${p.id}')" title="Editar">✎</button>
+          <button class="ibt del" onclick="event.stopPropagation();removePlayer('${p.id}')" title="Remover">✕</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // Markers
+  const ml = document.getElementById('marker-list');
+  const mlist = Object.values(markers);
+  if (!mlist.length) {
+    ml.innerHTML = '<div style="padding:10px 11px;font-family:Share Tech Mono,monospace;font-size:10px;color:#2a3828">Selecione tipo e clique no mapa</div>';
+  } else {
+    ml.innerHTML = mlist.map(m => {
+      const cfg = MARKER_CFG[m.type] || MARKER_CFG.flag;
+      return `
+        <div class="mrow" onclick="focusMarker('${m.id}')">
+          <div class="micon" style="color:${cfg.color}">${cfg.icon}</div>
+          <div style="flex:1;overflow:hidden">
+            <div class="mlabel">${m.name||cfg.label}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#3a4a30">X:${m.gx} Y:${m.gy}</div>
+          </div>
+          <span class="mtype" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${cfg.label}</span>
+          <button class="ibt del" onclick="event.stopPropagation();sendWS('REMOVE_MARKER',{id:'${m.id}'})" title="Remover">✕</button>
+        </div>`;
+    }).join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// PLAYER PANEL
+// ════════════════════════════════════════════════════════════
+function openPlayerPanel(id) {
+  editingPlayer = id;
+  const p = id ? players[id] : null;
+  document.getElementById('pp-title').textContent = p ? 'EDITAR PLAYER' : 'ADICIONAR PLAYER';
+  document.getElementById('pp-name').value  = p ? p.name : '';
+  document.getElementById('pp-x').value     = p && p.gx ? p.gx : '';
+  document.getElementById('pp-y').value     = p && p.gy ? p.gy : '';
+  document.getElementById('pp-raw').value   = '';
+  selectedColor = p ? (p.color || PLAYER_COLORS[0]) : PLAYER_COLORS[0];
+
+  const cr = document.getElementById('pp-colors');
+  cr.innerHTML = PLAYER_COLORS.map(c => `
+    <div class="cswatch ${c===selectedColor?'active':''}" style="background:${c}"
+      onclick="pickColor('${c}')"></div>`).join('');
+
+  openPanel('player-panel');
+}
+
+function pickColor(c) {
+  selectedColor = c;
+  document.querySelectorAll('.cswatch').forEach(el => {
+    el.classList.toggle('active', el.style.background === c || el.style.backgroundColor === c);
+  });
+}
+
+// Parse coordenadas brutas do jogo: {X=-142798 Y=-142780 Z=...}
+function parseRawCoords() {
+  const raw = document.getElementById('pp-raw').value;
+  const mx = raw.match(/X=([-\d.]+)/i);
+  const my = raw.match(/Y=([-\d.]+)/i);
+  if (mx) document.getElementById('pp-x').value = Math.round(parseFloat(mx[1]));
+  if (my) document.getElementById('pp-y').value = Math.round(parseFloat(my[1]));
+}
+
+function savePlayer() {
+  const name = (document.getElementById('pp-name').value.trim().toUpperCase() || 'PLAYER');
+  const gx = parseInt(document.getElementById('pp-x').value) || null;
+  const gy = parseInt(document.getElementById('pp-y').value) || null;
+  const payload = { name, gx, gy, color: selectedColor };
+  if (editingPlayer) payload.id = editingPlayer;
+  sendWS('UPSERT_PLAYER', payload);
+  closePanel('player-panel');
+}
+
+function removePlayer(id) {
+  sendWS('REMOVE_PLAYER', { id });
+  if (selectedPlayer === id) selectedPlayer = null;
+}
+
+function focusPlayer(id) {
+  selectedPlayer = id;
+  const p = players[id];
+  if (p && p.gx) {
+    const { px, py } = gameToPixel(p.gx, p.gy);
+    map.setView([py, px], 1, { animate: true });
+  }
+  renderSidebar();
+}
+
+// ════════════════════════════════════════════════════════════
+// MARKER PANEL
+// ════════════════════════════════════════════════════════════
+function saveMarker() {
+  const name = document.getElementById('mp-name').value.trim();
+  const gx = parseInt(document.getElementById('mp-x').value) || 0;
+  const gy = parseInt(document.getElementById('mp-y').value) || 0;
+  sendWS('UPSERT_MARKER', { name, gx, gy, type: pendingType || 'flag' });
+  closePanel('marker-panel');
+  toggleMode(null);
+}
+
+function focusMarker(id) {
+  const m = markers[id];
+  if (!m || !m.gx) return;
+  const { px, py } = gameToPixel(m.gx, m.gy);
+  map.setView([py, px], 1, { animate: true });
+}
+
+// ════════════════════════════════════════════════════════════
+// MODE
+// ════════════════════════════════════════════════════════════
+function toggleMode(m) {
+  activeMode = activeMode === m ? null : m;
+  ['car','chest','base','flag'].forEach(k => {
+    document.getElementById('mb-' + k)?.classList.toggle('active', k === activeMode);
+  });
+  const hud = document.getElementById('mode-hud');
+  if (activeMode) {
+    const cfg = MARKER_CFG[activeMode];
+    hud.textContent = `MODO: ${cfg.label} — CLIQUE NO MAPA`;
+    hud.style.display = 'block';
+  } else {
+    hud.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// PANELS
+// ════════════════════════════════════════════════════════════
+function openPanel(id) { document.getElementById(id).classList.remove('hidden'); }
+function closePanel(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ════════════════════════════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════════════════════════════
+function tick() {
+  const n = new Date(), p = v => String(v).padStart(2,'0');
+  document.getElementById('clock').textContent = `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+}
+setInterval(tick, 1000);
+tick();
+
+// ── INIT ─────────────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
