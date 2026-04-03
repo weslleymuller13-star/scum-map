@@ -299,7 +299,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <script>
 // ════════════════════════════════════════════════════════════
-// SCUM COORDINATE SYSTEM
+
 // Centro do mapa: X=-142798.922, Y=-142780.359 → pixel (540,540)
 // Escala calibrada com 16 pontos de interseção (regressão linear)
 // Mapa: 1080x1080 px = 144 km² in-game
@@ -432,7 +432,7 @@ const MARKER_CFG = {
 // ════════════════════════════════════════════════════════════
 // WEBSOCKET
 // ════════════════════════════════════════════════════════════
-const WS_URL = `ws://${location.host}`;
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 let ws = null;
 
 function connect() {
