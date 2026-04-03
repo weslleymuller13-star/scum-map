@@ -307,29 +307,26 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 // ════════════════════════════════════════════════════════════
 
 const SCUM = {
-  CENTER_X: -142798.922,
-  CENTER_Y: -142780.359,
-  CENTER_PX: 540,
-  CENTER_PY: 540,
+  GAME_MIN: -409600,
+  GAME_MAX:  409600,
   MAP_PX: 1080,
-  SCALE_X: -0.003748,  // pixels por unidade game X (invertido)
-  SCALE_Y:  0.003748,  // pixels por unidade game Y
 };
 
 // Converte coordenada do jogo → pixel no mapa 1080x1080
 function gameToPixel(gx, gy) {
-  const dx = gx - SCUM.CENTER_X;
-  const dy = gy - SCUM.CENTER_Y;
-  const px = SCUM.CENTER_PX + dx * SCUM.SCALE_X;
-  const py = SCUM.CENTER_PY - dy * SCUM.SCALE_Y;
+  const range = SCUM.GAME_MAX - SCUM.GAME_MIN;
+  const px = (gx - SCUM.GAME_MIN) / range * SCUM.MAP_PX;
+  const py_img = (SCUM.GAME_MAX - gy) / range * SCUM.MAP_PX;
+  const py = SCUM.MAP_PX - py_img;
   return { px, py };
 }
 
-// Converte pixel → coordenada do jogo
-function pixelToGame(px, py) {
-  const gx = SCUM.CENTER_X + (px - SCUM.CENTER_PX) / SCUM.SCALE_X;
-  const gy = SCUM.CENTER_Y - (py - SCUM.CENTER_PY) / SCUM.SCALE_Y;
-  return { gx: Math.round(gx), gy: Math.round(gy) };
+function pixelToGame(lng, lat) {
+  const range = SCUM.GAME_MAX - SCUM.GAME_MIN;
+  const py_img = SCUM.MAP_PX - lat;
+  const gx = Math.round(lng / SCUM.MAP_PX * range + SCUM.GAME_MIN);
+  const gy = Math.round(SCUM.GAME_MAX - py_img / SCUM.MAP_PX * range);
+  return { gx, gy };
 }
 
 // ════════════════════════════════════════════════════════════
