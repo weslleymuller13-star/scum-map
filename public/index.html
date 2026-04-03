@@ -254,8 +254,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
     <div class="field">
       <label>Coordenadas do jogo — cole aqui</label>
-      <input id="pp-raw" type="text" placeholder="{X=-142798 Y=-142780 Z=39619|...}" oninput="parseRawCoords()">
-      <div class="hint">Cole o teleport do jogo ou preencha X/Y manualmente abaixo</div>
+      <input id="pp-raw" type="text" placeholder="#Teleport 253380 -373855 0" oninput="parseRawCoords()">
+      <div class="hint">Cole o #Teleport do jogo — ex: #Teleport 253380 -373855 0</div>
     </div>
     <div class="row2">
       <div class="field">
@@ -653,11 +653,30 @@ function pickColor(c) {
 
 // Parse coordenadas brutas do jogo: {X=-142798 Y=-142780 Z=...}
 function parseRawCoords() {
-  const raw = document.getElementById('pp-raw').value;
+  const raw = document.getElementById('pp-raw').value.trim();
+
+  // Formato 1: #Teleport 253380.4688 -373855.6858 0
+  const tp = raw.match(/#?[Tt]eleport\s+([-\d.]+)\s+([-\d.]+)/);
+  if (tp) {
+    document.getElementById('pp-x').value = Math.round(parseFloat(tp[1]));
+    document.getElementById('pp-y').value = Math.round(parseFloat(tp[2]));
+    return;
+  }
+
+  // Formato 2: {X=-142798 Y=-142780 Z=...}
   const mx = raw.match(/X=([-\d.]+)/i);
   const my = raw.match(/Y=([-\d.]+)/i);
   if (mx) document.getElementById('pp-x').value = Math.round(parseFloat(mx[1]));
   if (my) document.getElementById('pp-y').value = Math.round(parseFloat(my[1]));
+
+  // Formato 3: só dois números separados por espaço "253380 -373855"
+  if (!tp && !mx && !my) {
+    const nums = raw.match(/([-\d.]+)\s+([-\d.]+)/);
+    if (nums) {
+      document.getElementById('pp-x').value = Math.round(parseFloat(nums[1]));
+      document.getElementById('pp-y').value = Math.round(parseFloat(nums[2]));
+    }
+  }
 }
 
 function savePlayer() {
